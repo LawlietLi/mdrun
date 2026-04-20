@@ -14,10 +14,10 @@
 
 ```sh
 # 全局安装
-bun add -g mdrun
+npm install -g @leyohli/mdrun
 
 # 或不安装直接使用
-bunx mdrun --help
+npx @leyohli/mdrun --help
 ```
 
 ## 快速开始

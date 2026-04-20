@@ -1,5 +1,5 @@
 {
-  "name": "mdrun",
+  "name": "@leyohli/mdrun",
   "version": "0.1.0",
   "description": "A Markdown-based task runner — documentation first, commands second",
   "type": "module",

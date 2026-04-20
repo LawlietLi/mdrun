@@ -14,10 +14,10 @@ Most task runners require you to write a dedicated config file (`Makefile`, `Tas
 
 ```sh
 # Install globally
-bun add -g mdrun
+npm install -g @leyohli/mdrun
 
 # Or use without installing
-bunx mdrun --help
+npx @leyohli/mdrun --help
 ```
 
 ## Quick Start
