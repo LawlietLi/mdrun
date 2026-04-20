@@ -1,3 +1,4 @@
+import { spawnSync } from "child_process";
 import type { CommandNode, RunOptions, ExecutionResult } from "../types.js";
 import { currentPlatform, platformMatches, resolveShell } from "./platform.js";
 import { buildEnv } from "./variables.js";
@@ -36,12 +37,12 @@ export async function executeCommand(
   }
 
   const shell = resolveShell();
-  const proc = Bun.spawn([shell.bin, shell.flag, script], {
+  const result = spawnSync(shell.bin, [shell.flag, script], {
     env: fullEnv,
-    stdio: ["inherit", "inherit", "inherit"],
+    stdio: "inherit",
   });
 
-  const exitCode = await proc.exited;
+  const exitCode = result.status ?? 1;
   return { exitCode, skipped: false, aborted: false };
 }
 

@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import type { LookupResult } from "../types.js";
 import { FileNotFoundError } from "./errors.js";
@@ -8,9 +9,8 @@ export const DEFAULT_FILES = ["mdrun.md", "BUILD.md", "SKILL.md", "README.md"] a
 export async function findDefaultFile(): Promise<LookupResult | null> {
   for (const name of DEFAULT_FILES) {
     const path = join(process.cwd(), name);
-    const file = Bun.file(path);
-    if (await file.exists()) {
-      return { path, source: await file.text() };
+    if (existsSync(path)) {
+      return { path, source: readFileSync(path, "utf8") };
     }
   }
   return null;
@@ -18,9 +18,8 @@ export async function findDefaultFile(): Promise<LookupResult | null> {
 
 /** Reads the given path and returns a LookupResult. Throws FileNotFoundError if missing. */
 export async function readFile(path: string): Promise<LookupResult> {
-  const file = Bun.file(path);
-  if (!(await file.exists())) {
+  if (!existsSync(path)) {
     throw new FileNotFoundError(path);
   }
-  return { path, source: await file.text() };
+  return { path, source: readFileSync(path, "utf8") };
 }

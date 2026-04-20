@@ -170,9 +170,10 @@ Options:
 mdrun can also be used as a library:
 
 ```typescript
+import { readFileSync } from "fs";
 import { parseMarkdown, buildCommandTree, executeCommand } from "mdrun";
 
-const source = await Bun.file("mdrun.md").text();
+const source = readFileSync("mdrun.md", "utf8");
 const blocks = parseMarkdown(source);
 const { commands } = buildCommandTree(blocks);
 

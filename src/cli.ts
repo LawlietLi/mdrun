@@ -1,4 +1,3 @@
-#!/usr/bin/env bun
 import { Command } from "commander";
 import { parseMarkdown } from "./parser/markdown.js";
 import { buildCommandTree } from "./resolver/tree.js";
