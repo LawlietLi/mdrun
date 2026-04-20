@@ -12,9 +12,7 @@ args:
     desc: Simulate deployment without making changes
 ```
 
-```bash cmd=deploy ref=deploy-meta
+```bash cmd=deploy spec=deploy-meta
 echo "Deploying to $env..."
-if [ "$dry_run" = "true" ]; then
-  echo "(dry run — no changes made)"
-fi
+[ -n "$dry_run" ] && echo "(dry run — no changes made)"
 ```

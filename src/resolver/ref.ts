@@ -27,6 +27,7 @@ export function applyMetaBlock(node: CommandNode, meta: MetaBlock): CommandNode 
       if (metaArg.type !== undefined) merged.type = metaArg.type;
       if (metaArg.default !== undefined) merged.default = metaArg.default;
       if (metaArg.desc !== undefined) merged.desc = metaArg.desc;
+      if (metaArg.positional !== undefined) merged.positional = metaArg.positional;
 
       specMap.set(name, merged);
     }

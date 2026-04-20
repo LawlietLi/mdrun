@@ -39,16 +39,34 @@ describe("buildCommandTree", () => {
     expect(image.children).toHaveLength(2);
   });
 
-  test("resolves ref= cross-reference", () => {
+  test("resolves spec= cross-reference", () => {
     const yamlBlock: RawBlock = {
       tags: { lang: "yaml", id: "meta1" },
       body: "desc: Deploy the app\nconfirm: Deploy to $env?",
       line: 1,
     };
-    const cmdBlock = block("deploy", "echo deploy", { ref: "meta1" });
+    const cmdBlock = block("deploy", "echo deploy", { spec: "meta1" });
     const { commands } = buildCommandTree([yamlBlock, cmdBlock]);
     expect(commands[0]!.desc).toBe("Deploy the app");
     expect(commands[0]!.confirm).toBe("Deploy to $env?");
+  });
+
+  test("inline confirm= is applied to node", () => {
+    const { commands } = buildCommandTree([block("drop", "echo drop", { confirm: "Are you sure?" })]);
+    expect(commands[0]!.confirm).toBe("Are you sure?");
+  });
+
+  test("spec= takes priority over inline args=", () => {
+    const yamlBlock: RawBlock = {
+      tags: { lang: "yaml", id: "meta1" },
+      body: "args:\n  env:\n    required: true",
+      line: 1,
+    };
+    // spec= present AND args= present — spec= should win, inline args= ignored
+    const cmdBlock = block("deploy", "echo deploy", { spec: "meta1", args: "(ignored)" });
+    const { commands } = buildCommandTree([yamlBlock, cmdBlock]);
+    expect(commands[0]!.args.find((a) => a.name === "env")).toBeDefined();
+    expect(commands[0]!.args.find((a) => a.name === "ignored")).toBeUndefined();
   });
 
   test("parses inline args= into ArgSpec", () => {

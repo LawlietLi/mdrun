@@ -4,11 +4,15 @@ A Markdown-based task runner — **documentation first, commands second**.
 
 Commands are declared via metadata in fenced code block info strings. Your documents render normally in any Markdown viewer; mdrun simply executes the scripts you've already written.
 
+Inspired by [Makefile](https://www.gnu.org/software/make/), [just](https://github.com/casey/just), and [mask](https://github.com/jacobdeichert/mask) — with a focus on keeping documentation and executable commands in the same place, readable by both humans and AI agents.
+
 > [中文文档](./README.zh.md)
 
 ## Why mdrun?
 
 Most task runners require you to write a dedicated config file (`Makefile`, `Taskfile.yml`, `package.json` scripts). mdrun lets you embed executable commands directly in any Markdown document — your `README.md`, `BUILD.md`, or a `SKILL.md` used by an AI agent — without affecting how the document reads.
+
+Markdown's natural structure also makes it a good fit for [progressive disclosure](https://en.wikipedia.org/wiki/Progressive_disclosure) to AI agents. Instead of loading an entire document into context, an agent can call `mdrun --tree` to get a compact command list, then `mdrun <cmd> --help` to fetch only the details it needs — keeping context windows small and focused.
 
 ## Installation
 
@@ -20,45 +24,34 @@ npm install -g @leyohli/mdrun
 npx @leyohli/mdrun --help
 ```
 
-## Quick Start
+## Try It Now
 
-Create a `mdrun.md` file (or any of `BUILD.md`, `SKILL.md`, `README.md`):
-
-````markdown
-# My Project
-
-Some documentation here.
-
-```bash cmd=build desc=Build the project
-cargo build --release
-```
-
-```bash cmd=test desc=Run tests
-cargo test
-```
-
-```bash cmd=db.migrate desc=Migrate the database
-diesel migration run
-```
-
-```bash cmd=db.seed desc=Seed with test data
-cargo run --bin seed
-```
-````
-
-Then run commands:
+This README is itself a runnable mdrun file. After installing, try:
 
 ```sh
-mdrun build
-mdrun test
-mdrun db migrate
-mdrun db seed
+mdrun -f README.md hi
+mdrun -f README.md hi world
+mdrun -f README.md hi world --strong
+```
 
-# List all commands
-mdrun --tree
+```bash cmd=hi args=[name] [-s/--strong] desc=Say hi
+echo "hello, ${name:-world}${strong:+!}"
+```
 
-# Output as JSON (for tool integration)
-mdrun --json
+## Quick Start
+
+[example/mdrun.md](./example/mdrun.md) covers all features — basic commands, arguments, subcommands, YAML metadata, and multi-platform support. Run it directly:
+
+```sh
+# List all available commands
+mdrun --tree -f example/mdrun.md
+
+# Run a command
+mdrun greet world -f example/mdrun.md
+mdrun db migrate -f example/mdrun.md
+
+# Subcommand help
+mdrun db --help -f example/mdrun.md
 ```
 
 ## Info String Tags
@@ -70,9 +63,10 @@ Commands are declared via tags in the fenced code block info string.
 | `cmd=` | Yes | Command name; use dot notation for subcommands (`db.migrate`) |
 | `args=` | No | Parameter declaration (see [Parameter Syntax](#parameter-syntax)) |
 | `desc=` | No | Command description shown in help output |
-| `ref=` | No | Reference a YAML metadata block by `id=` |
+| `confirm=` | No | Confirmation prompt before execution (supports `$variable` interpolation) |
+| `spec=` | No | Reference a YAML metadata block by `id=` (takes priority over `args=`) |
 | `os=` | No | Platform filter: `linux`, `mac`, `windows` (comma-separated) |
-| `id=` | — | Identity for YAML metadata blocks used with `ref=` |
+| `id=` | — | Identity for YAML metadata blocks used with `spec=` |
 
 ## Parameter Syntax
 
@@ -90,14 +84,16 @@ The `args=` tag accepts a compact single-line syntax:
 
 **Variable injection:** option names are injected as environment variables with hyphens replaced by underscores. `--dry-run` becomes `$dry_run` (and `$DRY_RUN`).
 
+````markdown
 ```bash cmd=serve args=[-p/--port=<port>=3000] [--watch] desc=Start dev server
 echo "Starting on port $port"
 if [ "$watch" = "true" ]; then echo "Watch mode on"; fi
 ```
+````
 
 ## YAML Metadata Blocks
 
-For complex commands, declare parameters in a YAML code block with `id=` and reference it from the script block with `ref=`:
+For complex commands, declare parameters in a YAML code block with `id=` and reference it from the script block with `spec=`:
 
 ````markdown
 ```yaml id=deploy-meta
@@ -112,7 +108,7 @@ args:
     desc: Simulate without making changes
 ```
 
-```bash cmd=deploy ref=deploy-meta
+```bash cmd=deploy spec=deploy-meta
 echo "Deploying to $env..."
 if [ "$dry_run" = "true" ]; then
   echo "(dry run)"
@@ -126,6 +122,7 @@ YAML metadata block fields:
 | --- | --- |
 | `desc` | Command description |
 | `confirm` | Confirmation prompt before execution (supports `$variable` interpolation) |
+| `args.<name>.positional` | Declare as a positional argument instead of `--option` (default: `false`) |
 | `args.<name>.required` | Whether the argument is required (default: `false`) |
 | `args.<name>.short` | Short option name (e.g. `t` for `-t`) |
 | `args.<name>.type` | Argument type: `string`, `number`, `boolean` |

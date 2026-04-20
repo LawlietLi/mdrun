@@ -26,12 +26,18 @@ describe("parseInfoString", () => {
   });
 
   test("parses all tags in one info string", () => {
-    const tags = parseInfoString("bash cmd=deploy args=(env) [--dry-run] ref=deploy-meta os=linux,mac");
+    const tags = parseInfoString("bash cmd=deploy args=(env) [--dry-run] spec=deploy-meta os=linux,mac");
     expect(tags.lang).toBe("bash");
     expect(tags.cmd).toBe("deploy");
     expect(tags.args).toBe("(env) [--dry-run]");
-    expect(tags.ref).toBe("deploy-meta");
+    expect(tags.spec).toBe("deploy-meta");
     expect(tags.os).toBe("linux,mac");
+  });
+
+  test("parses inline confirm=", () => {
+    const tags = parseInfoString("bash cmd=drop confirm=Are you sure?");
+    expect(tags.cmd).toBe("drop");
+    expect(tags.confirm).toBe("Are you sure?");
   });
 
   test("parses id= for yaml blocks", () => {

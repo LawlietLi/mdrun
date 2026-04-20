@@ -1,6 +1,6 @@
 {
   "name": "@leyohli/mdrun",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Markdown-based task runner — documentation first, commands second",
   "type": "module",
   "bin": {
@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "dev": "bun run src/cli.ts",
-    "build": "tsup src/cli.ts src/index.ts --format esm --dts --clean",
+    "build": "tsup",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "lint": "biome check src test",

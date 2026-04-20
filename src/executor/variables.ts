@@ -20,6 +20,9 @@ export function buildEnv(
     let value: string | undefined;
 
     if (rawValue !== undefined) {
+      // Boolean false means the flag was not passed — skip injection entirely.
+      // Shell scripts test presence with ${flag:+...} or [ -n "$flag" ].
+      if (rawValue === false) continue;
       value = String(rawValue);
     } else if (spec.default !== undefined) {
       value = spec.default;

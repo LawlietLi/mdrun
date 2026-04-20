@@ -62,6 +62,7 @@ function parseToken(token: string): ArgSpec | null {
       name: inner,
       required,
       type: "string",
+      positional: true,
     };
   }
 

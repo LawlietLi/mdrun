@@ -4,11 +4,15 @@
 
 命令通过代码块 info string 中的元数据标签声明。文档在任何 Markdown 查看器中都能正常渲染；mdrun 只是执行你已经写好的脚本。
 
+受 [Makefile](https://www.gnu.org/software/make/)、[just](https://github.com/casey/just) 和 [mask](https://github.com/jacobdeichert/mask) 启发，专注于将文档与可执行命令放在同一个地方，让人和 AI Agent 都能直接读懂并执行。
+
 > [English Documentation](./README.md)
 
 ## 为什么选择 mdrun？
 
 大多数任务运行器要求你编写专用的配置文件（`Makefile`、`Taskfile.yml`、`package.json` scripts）。mdrun 让你直接在任何 Markdown 文档中嵌入可执行命令 —— 无论是 `README.md`、`BUILD.md`，还是 AI Agent 使用的 `SKILL.md` —— 而不影响文档的可读性。
+
+Markdown 的天然结构也非常适合对 AI Agent 进行[渐进式披露](https://en.wikipedia.org/wiki/Progressive_disclosure)。Agent 无需将整个文档塞入上下文，只需调用 `mdrun --tree` 获取精简的命令列表，再通过 `mdrun <cmd> --help` 按需获取具体参数 —— 让上下文窗口保持小而专注。
 
 ## 安装
 
@@ -20,40 +24,34 @@ npm install -g @leyohli/mdrun
 npx @leyohli/mdrun --help
 ```
 
-## 快速开始
+## 立即体验
 
-创建 `mdrun.md` 文件（或 `BUILD.md`、`SKILL.md`、`README.md` 之一）：
-
-````markdown
-# 我的项目
-
-一些文档说明。
-
-```bash cmd=build desc=构建项目
-cargo build --release
-```
-
-```bash cmd=test desc=运行测试
-cargo test
-```
-
-```bash cmd=db.migrate desc=执行数据库迁移
-diesel migration run
-```
-````
-
-然后运行命令：
+这个 README 本身就是一个可运行的 mdrun 文件，安装后直接试试：
 
 ```sh
-mdrun build
-mdrun test
-mdrun db migrate
+mdrun -f README.md hi
+mdrun -f README.md hi world
+mdrun -f README.md hi world --strong
+```
 
-# 列出所有命令
-mdrun --tree
+```bash cmd=hi args=[name] [-s/--strong] desc=Say hi
+echo "hello, ${name:-world}${strong:+!}"
+```
 
-# 以 JSON 格式输出（用于工具集成）
-mdrun --json
+## 快速开始
+
+[example/mdrun.md](./example/mdrun.md) 涵盖所有特性 —— 基础命令、参数、子命令、YAML 元数据和多平台支持。直接运行：
+
+```sh
+# 列出所有可用命令
+mdrun -f example/mdrun.md --tree
+
+# 运行命令
+mdrun -f example/mdrun.md greet world
+mdrun -f example/mdrun.md db migrate
+
+# 子命令帮助
+mdrun -f example/mdrun.md db --help
 ```
 
 ## Info String 标签
@@ -63,9 +61,10 @@ mdrun --json
 | `cmd=` | 是 | 命令名称；使用点号表示子命令（`db.migrate`） |
 | `args=` | 否 | 参数声明（见[参数语法](#参数语法)） |
 | `desc=` | 否 | 命令描述，显示在帮助输出中 |
-| `ref=` | 否 | 通过 `id=` 引用 YAML 元数据块 |
+| `confirm=` | 否 | 执行前的确认提示（支持 `$variable` 插值） |
+| `spec=` | 否 | 通过 `id=` 引用 YAML 元数据块（优先于 `args=`） |
 | `os=` | 否 | 平台过滤：`linux`、`mac`、`windows`（逗号分隔） |
-| `id=` | — | YAML 元数据块的标识符，供 `ref=` 引用 |
+| `id=` | — | YAML 元数据块的标识符，供 `spec=` 引用 |
 
 ## 参数语法
 
@@ -85,26 +84,24 @@ mdrun --json
 
 ## YAML 元数据块
 
-对于复杂命令，在带 `id=` 的 YAML 代码块中声明参数，并在脚本块中通过 `ref=` 引用：
+对于复杂命令，在带 `id=` 的 YAML 代码块中声明参数，并在脚本块中通过 `spec=` 引用：
 
 ````markdown
 ```yaml id=deploy-meta
-desc: 部署应用到指定环境
-confirm: 确认部署到 $env？此操作不可撤销。
+desc: Deploy the application
+confirm: Deploy to $env? This cannot be undone.
 args:
   env:
     required: true
-    desc: 目标环境（staging/production）
+    desc: Target environment (staging/production)
   dry-run:
     type: boolean
-    desc: 模拟执行，不实际变更
+    desc: Simulate without making changes
 ```
 
-```bash cmd=deploy ref=deploy-meta
-echo "正在部署到 $env..."
-if [ "$dry_run" = "true" ]; then
-  echo "（dry run，无实际变更）"
-fi
+```bash cmd=deploy spec=deploy-meta
+echo "Deploying to $env..."
+[ -n "$dry_run" ] && echo "(dry run)"
 ```
 ````
 
@@ -129,12 +126,12 @@ cargo build --release
 ```text
 mdrun [OPTIONS] [COMMAND] [ARGS...]
 
-选项：
-  -f, --file <file>   指定 Markdown 文件（默认：自动查找）
-  --tree              以树形格式列出所有可用命令
-  --json              以 JSON 格式输出命令结构
-  -h, --help          显示帮助
-  -V, --version       显示版本
+Options:
+  -f, --file <file>   Markdown file to use (default: auto-discover)
+  --tree              List all available commands in tree format
+  --json              Output command structure as JSON
+  -h, --help          Show help
+  -V, --version       Show version
 ```
 
 **默认文件查找顺序**（未指定 `-f` 时，在当前目录按以下顺序查找）：

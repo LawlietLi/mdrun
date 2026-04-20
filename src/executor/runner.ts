@@ -16,12 +16,12 @@ export async function executeCommand(
   // Resolve the script to run: check variants first, then fall back to node.script.
   const script = resolveScript(node);
   if (script === null) {
-    return { exitCode: 0, skipped: true };
+    return { exitCode: 0, skipped: true, aborted: false };
   }
 
   if (!script) {
     console.error(`mdrun: "${node.name}" is a command group, not an executable command.`);
-    return { exitCode: 1, skipped: false };
+    return { exitCode: 1, skipped: false, aborted: false };
   }
 
   const env = buildEnv(node.args, options.args);
@@ -31,7 +31,7 @@ export async function executeCommand(
     const confirmed = await promptConfirm(node.confirm, env);
     if (!confirmed) {
       console.log("Aborted.");
-      return { exitCode: 0, skipped: true };
+      return { exitCode: 0, skipped: false, aborted: true };
     }
   }
 
@@ -42,7 +42,7 @@ export async function executeCommand(
   });
 
   const exitCode = await proc.exited;
-  return { exitCode, skipped: false };
+  return { exitCode, skipped: false, aborted: false };
 }
 
 /**

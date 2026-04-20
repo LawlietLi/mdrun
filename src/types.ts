@@ -6,7 +6,8 @@ export interface InfoStringTags {
   cmd?: string;
   args?: string;
   desc?: string;
-  ref?: string;
+  spec?: string;
+  confirm?: string;
   os?: string;
   id?: string;
 }
@@ -29,6 +30,8 @@ export interface ArgSpec {
   type: ArgType;
   default?: string;
   desc?: string;
+  /** True for positional args declared via (name) or [name] in args= syntax. */
+  positional?: boolean;
 }
 
 // ─── YAML metadata block ──────────────────────────────────────────────────────
@@ -47,6 +50,7 @@ export interface MetaArgSpec {
   type?: ArgType;
   default?: string;
   desc?: string;
+  positional?: boolean;
 }
 
 // ─── Resolved command tree ────────────────────────────────────────────────────
@@ -82,6 +86,8 @@ export interface ExecutionResult {
   exitCode: number;
   /** true when the os= filter excluded this command on the current platform */
   skipped: boolean;
+  /** true when the user declined the confirm prompt */
+  aborted: boolean;
 }
 
 // ─── File lookup ──────────────────────────────────────────────────────────────

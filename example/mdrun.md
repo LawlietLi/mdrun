@@ -1,7 +1,7 @@
 # mdrun Example
 
 This file is both documentation and a runnable task file.
-Try: `mdrun --tree -f example/mdrun.md`
+Try: `mdrun -f example/mdrun.md --tree`
 
 ## Basic Commands
 
@@ -25,21 +25,22 @@ Required positional argument `(name)`:
 echo "Hello, $name!"
 ```
 
-Optional flag `[--loud]` and option with default `[-p/--port=<port>=3000]`:
+Optional flag `[--loud]` and option with default `[-p/--port=<port>=3000]`.
+
+Boolean flags are injected as `flag=true` when passed, and **not set** when absent —
+use `[ -n "$flag" ]` or `${flag:+...}` to test them in shell scripts:
 
 ```bash cmd=serve args=[--host=<host>=localhost] [-p/--port=<port>=3000] [--loud] desc=Start a local server (simulated)
 echo "Starting server on $host:$port"
-if [ "$loud" = "true" ]; then
-  echo "LOUD MODE ON"
-fi
+[ -n "$loud" ] && echo "LOUD MODE ON"
 ```
 
 Run with:
 
 ```sh
-mdrun greet world -f example/mdrun.md
-mdrun serve -f example/mdrun.md
-mdrun serve --port 8080 --loud -f example/mdrun.md
+mdrun -f example/mdrun.md greet world
+mdrun -f example/mdrun.md serve
+mdrun -f example/mdrun.md serve --port 8080 --loud
 ```
 
 ## Subcommands
@@ -61,15 +62,18 @@ echo "Resetting database..."
 Run with:
 
 ```sh
-mdrun db --help -f example/mdrun.md
-mdrun db migrate -f example/mdrun.md
-mdrun db reset -f example/mdrun.md
+mdrun -f example/mdrun.md db --help
+mdrun -f example/mdrun.md db migrate
+mdrun -f example/mdrun.md db reset
 ```
 
 ## YAML Metadata Blocks
 
-For complex commands, declare parameters in a `yaml id=` block and reference with `ref=`.
+For complex commands, declare parameters in a `yaml id=` block and reference with `spec=`.
 This enables rich parameter descriptions, confirmation prompts, and required validation.
+
+YAML args are registered as `--options` by default. Use `positional: true` to declare
+a positional argument (equivalent to `(name)` / `[name]` in inline `args=` syntax).
 
 ```yaml id=deploy-meta
 desc: Deploy the application to an environment
@@ -80,24 +84,22 @@ args:
     desc: Target environment (staging / production)
   dry-run:
     type: boolean
-    desc: Print what would happen without making changes
+    desc: Simulate deployment without making changes
   tag:
     default: latest
     desc: Docker image tag to deploy
 ```
 
-```bash cmd=deploy ref=deploy-meta
+```bash cmd=deploy spec=deploy-meta
 echo "Deploying tag=$tag to env=$env"
-if [ "$dry_run" = "true" ]; then
-  echo "(dry run — no changes made)"
-fi
+[ -n "$dry_run" ] && echo "(dry run — no changes made)"
 ```
 
 Run with:
 
 ```sh
-mdrun deploy --env staging --dry-run -f example/mdrun.md
-mdrun deploy --env production --tag v1.2.3 -f example/mdrun.md
+mdrun -f example/mdrun.md deploy --env staging --dry-run
+mdrun -f example/mdrun.md deploy --env production --tag v1.2.3
 ```
 
 ## Multi-Platform Commands
@@ -115,5 +117,5 @@ Get-ComputerInfo | Select-Object OsName, OsVersion
 Run with:
 
 ```sh
-mdrun platform-info -f example/mdrun.md
+mdrun -f example/mdrun.md platform-info
 ```

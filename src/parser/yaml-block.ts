@@ -33,6 +33,7 @@ export function parseYamlBlock(block: RawBlock): MetaBlock | null {
       if (typeof v["short"] === "string") argSpec.short = v["short"];
       if (typeof v["default"] === "string") argSpec.default = v["default"];
       if (typeof v["desc"] === "string") argSpec.desc = v["desc"];
+      if (typeof v["positional"] === "boolean") argSpec.positional = v["positional"];
       if (v["type"] === "string" || v["type"] === "number" || v["type"] === "boolean") {
         argSpec.type = v["type"] as ArgType;
       }

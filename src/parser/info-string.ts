@@ -1,6 +1,6 @@
 import type { InfoStringTags } from "../types.js";
 
-const KNOWN_KEYS = ["cmd", "args", "desc", "ref", "os", "id"] as const;
+const KNOWN_KEYS = ["cmd", "args", "desc", "spec", "confirm", "os", "id"] as const;
 type KnownKey = (typeof KNOWN_KEYS)[number];
 
 /**

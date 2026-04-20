@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { Command, Help } from "commander";
+import { Command } from "commander";
 import { parseMarkdown } from "./parser/markdown.js";
 import { buildCommandTree } from "./resolver/tree.js";
 import { executeCommand } from "./executor/runner.js";
@@ -11,7 +11,7 @@ import { MdrunError } from "./utils/errors.js";
 import { color } from "./utils/color.js";
 import type { CommandNode } from "./types.js";
 
-const VERSION = "0.1.0";
+const VERSION = process.env["MDRUN_VERSION"] ?? "0.0.0";
 
 const HELP_STYLE = {
   styleTitle: color.bold,
@@ -75,10 +75,15 @@ async function main() {
     .option("-f, --file <file>", "Markdown file to use")
     .option("--tree", "List all available commands in tree format")
     .option("--json", "Output command structure as JSON")
+    .enablePositionalOptions()
     .configureHelp(HELP_STYLE)
     .action(() => {
-      // No subcommand given — show tree
-      console.log(commands.length ? renderTree(commands) : `No commands found in ${lookup.path}`);
+      if (commands.length === 0) {
+        console.error(`No commands found in ${lookup.path}`);
+        process.exit(1);
+      }
+      console.error(`${color.bold(color.red("error:"))} 'mdrun' requires a subcommand, but one was not provided\n`);
+      program.help();
     });
 
   // Step 5: register all commands from the markdown file
@@ -91,7 +96,7 @@ async function main() {
 /** Recursively registers CommandNode[] as commander subcommands. */
 function registerCommands(parent: Command, nodes: CommandNode[]): void {
   for (const node of nodes) {
-    const cmd = new Command(node.label).configureHelp(HELP_STYLE);
+    const cmd = new Command(node.label).configureHelp(HELP_STYLE).enablePositionalOptions();
     if (node.desc) cmd.description(node.desc);
 
     if (node.children.length > 0) {
@@ -119,6 +124,7 @@ function registerCommands(parent: Command, nodes: CommandNode[]): void {
             `mdrun: "${node.name}" is not available on platform "${currentPlatform()}" — skipped.`,
           );
         }
+        if (result.aborted) process.exit(0);
 
         process.exit(result.exitCode);
       });
@@ -130,12 +136,22 @@ function registerCommands(parent: Command, nodes: CommandNode[]): void {
 
 /** Registers ArgSpec[] onto a commander Command as arguments and options. */
 function registerArgs(cmd: Command, node: CommandNode): void {
+  // Warn if a required positional follows an optional one — commander can't resolve this.
+  const positionals = node.args.filter((s) => s.positional);
+  let seenOptional = false;
+  for (const s of positionals) {
+    if (!s.required) seenOptional = true;
+    else if (seenOptional) {
+      console.error(
+        `mdrun: warning: command "${node.name}": required positional argument "${s.name}" follows an optional one — this ordering is ambiguous`,
+      );
+    }
+  }
+
   for (const spec of node.args) {
     if (spec.name.startsWith("_")) continue;
 
-    const isPositional = !spec.name.startsWith("-") && !spec.short;
-
-    if (isPositional && spec.type !== "boolean") {
+    if (spec.positional && spec.type !== "boolean") {
       // Positional argument: use .argument()
       const placeholder = spec.required ? `<${spec.name}>` : `[${spec.name}]`;
       cmd.argument(placeholder, spec.desc ?? "", spec.default);
@@ -165,9 +181,7 @@ function extractParsedArgs(
   const result: Record<string, string | boolean> = {};
 
   // Collect positional arg specs in declaration order
-  const positionalSpecs = node.args.filter(
-    (s) => !s.name.startsWith("-") && s.type !== "boolean",
-  );
+  const positionalSpecs = node.args.filter((s) => s.positional);
 
   // commander stores positional values in cmd.args[]
   for (let i = 0; i < positionalSpecs.length; i++) {
@@ -178,10 +192,11 @@ function extractParsedArgs(
 
   // Options: commander camelCases --dry-run → dryRun
   for (const spec of node.args) {
-    if (!spec.name.startsWith("-") && spec.type !== "boolean") continue; // already handled above
+    if (spec.positional) continue; // already handled above
     const camelKey = spec.name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
     const val = opts[camelKey] ?? opts[spec.name];
-    if (val !== undefined) result[spec.name] = val;
+    // Skip false booleans — absence is represented by not injecting the env var at all.
+    if (val !== undefined && val !== false) result[spec.name] = val;
   }
 
   return result;

@@ -14,7 +14,7 @@ export interface BuildResult {
  * Steps:
  * 1. Separate YAML metadata blocks (id= present, no cmd=) from command blocks.
  * 2. Parse each YAML block into a MetaBlock.
- * 3. For each command block, build a CommandNode and resolve ref= against meta.
+ * 3. For each command block, build a CommandNode and resolve spec= against meta.
  * 4. Insert nodes into the tree using dot-notation paths; create synthetic
  *    namespace nodes as needed.
  */
@@ -36,11 +36,14 @@ export function buildCommandTree(blocks: RawBlock[]): BuildResult {
   const roots: CommandNode[] = [];
 
   for (const block of commandBlocks) {
-    const { cmd, args, desc, ref, os } = block.tags;
+    const { cmd, args, desc, spec, confirm, os } = block.tags;
     if (!cmd) continue;
 
-    const argSpecs = args ? parseArgsSyntax(args) : [];
     const osList = os ? os.split(",").map((s) => s.trim()) : undefined;
+
+    // spec= takes priority: when present, ignore inline args=
+    const metaBlock = spec ? meta.get(spec) : undefined;
+    const argSpecs = metaBlock ? [] : args ? parseArgsSyntax(args) : [];
 
     let node: CommandNode = {
       name: cmd,
@@ -50,15 +53,13 @@ export function buildCommandTree(blocks: RawBlock[]): BuildResult {
       children: [],
     };
     if (desc !== undefined) node.desc = desc;
+    if (confirm !== undefined) node.confirm = confirm;
     if (osList !== undefined) node.os = osList;
     if (block.line) node.line = block.line;
 
-    // Resolve ref= cross-reference
-    if (ref) {
-      const metaBlock = meta.get(ref);
-      if (metaBlock) {
-        node = applyMetaBlock(node, metaBlock);
-      }
+    // Apply spec= metadata (overrides inline desc/confirm, merges args)
+    if (metaBlock) {
+      node = applyMetaBlock(node, metaBlock);
     }
 
     insertNode(roots, node, cmd.split("."));
