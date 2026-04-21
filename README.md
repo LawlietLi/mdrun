@@ -54,46 +54,44 @@ mdrun db migrate -f example/mdrun.md
 mdrun db --help -f example/mdrun.md
 ```
 
-## Info String Tags
+## Subcommands
 
-Commands are declared via tags in the fenced code block info string.
-
-| Tag | Required | Description |
-| --- | --- | --- |
-| `cmd=` | Yes | Command name; use dot notation for subcommands (`db.migrate`) |
-| `args=` | No | Parameter declaration (see [Parameter Syntax](#parameter-syntax)) |
-| `desc=` | No | Command description shown in help output |
-| `confirm=` | No | Confirmation prompt before execution (supports `$variable` interpolation) |
-| `spec=` | No | Reference a YAML metadata block by `id=` (takes priority over `args=`) |
-| `os=` | No | Platform filter: `linux`, `mac`, `windows` (comma-separated) |
-| `id=` | — | Identity for YAML metadata blocks used with `spec=` |
-
-## Parameter Syntax
-
-The `args=` tag accepts a compact single-line syntax:
-
-| Token | Meaning |
-| --- | --- |
-| `(name)` | Required positional parameter |
-| `[name]` | Optional positional parameter |
-| `[--flag]` | Optional boolean flag |
-| `[-p/--port=<port>]` | Optional string option (short + long form) |
-| `(-d/--domain=<domain>)` | Required string option |
-| `[--port=<port:number>]` | Option with type annotation (`string`/`number`/`boolean`) |
-| `[--tag=<tag>=latest]` | Option with default value |
-
-**Variable injection:** option names are injected as environment variables with hyphens replaced by underscores. `--dry-run` becomes `$dry_run` (and `$DRY_RUN`).
+Use dot notation in `cmd=` to group related commands — no explicit group declaration needed:
 
 ````markdown
-```bash cmd=serve args=[-p/--port=<port>=3000] [--watch] desc=Start dev server
-echo "Starting on port $port"
-if [ "$watch" = "true" ]; then echo "Watch mode on"; fi
+```bash cmd=db.migrate desc=Run database migrations
+diesel migration run
+```
+
+```bash cmd=db.seed desc=Seed with test data
+cargo run --bin seed
 ```
 ````
 
-## YAML Metadata Blocks
+```sh
+mdrun db --help     # shows migrate, seed
+mdrun db migrate
+```
 
-For complex commands, declare parameters in a YAML code block with `id=` and reference it from the script block with `spec=`:
+## Arguments and Options
+
+Declare parameters inline with `args=`. Positional arguments use `(required)` or `[optional]`;
+options use `[--flag]` or `[-p/--port=<port>=3000]`:
+
+````markdown
+```bash cmd=deploy args=(-e/--env=<env>) [--dry-run] desc=Deploy the app
+echo "Deploying to $env"
+[ -n "$dry_run" ] && echo "(dry run)"
+```
+````
+
+Arguments are injected as environment variables — `--dry-run` becomes `$dry_run` and `$DRY_RUN`.
+Boolean flags are unset when not passed, so `[ -n "$flag" ]` and `${flag:+...}` work as expected.
+
+## YAML Metadata
+
+For commands with many parameters or a confirmation prompt, use a `yaml id=` block and
+reference it with `spec=`:
 
 ````markdown
 ```yaml id=deploy-meta
@@ -110,28 +108,15 @@ args:
 
 ```bash cmd=deploy spec=deploy-meta
 echo "Deploying to $env..."
-if [ "$dry_run" = "true" ]; then
-  echo "(dry run)"
-fi
+[ -n "$dry_run" ] && echo "(dry run)"
 ```
 ````
 
-YAML metadata block fields:
+When `spec=` is present, inline `args=` is ignored.
 
-| Field | Description |
-| --- | --- |
-| `desc` | Command description |
-| `confirm` | Confirmation prompt before execution (supports `$variable` interpolation) |
-| `args.<name>.positional` | Declare as a positional argument instead of `--option` (default: `false`) |
-| `args.<name>.required` | Whether the argument is required (default: `false`) |
-| `args.<name>.short` | Short option name (e.g. `t` for `-t`) |
-| `args.<name>.type` | Argument type: `string`, `number`, `boolean` |
-| `args.<name>.default` | Default value |
-| `args.<name>.desc` | Argument description for help text |
+## Multi-Platform
 
-## Multi-Platform Support
-
-Use `os=` to provide platform-specific implementations of the same command. mdrun selects the matching block at runtime:
+Repeat the same `cmd=` with different `os=` tags. mdrun picks the right block at runtime:
 
 ````markdown
 ```bash cmd=build os=linux,mac
@@ -143,27 +128,10 @@ cargo build --release
 ```
 ````
 
-Supported platform values: `linux`, `mac`, `windows`.
+## Full Spec
 
-## CLI Reference
-
-```text
-mdrun [OPTIONS] [COMMAND] [ARGS...]
-
-Options:
-  -f, --file <file>   Markdown file to use (default: auto-discover)
-  --tree              List all available commands in tree format
-  --json              Output command structure as JSON
-  -h, --help          Show help
-  -V, --version       Show version
-```
-
-**Default file discovery** (when `-f` is not specified, mdrun searches the current directory in this order):
-
-1. `mdrun.md` — explicitly prepared for mdrun
-2. `BUILD.md` — build and development commands
-3. `SKILL.md` — AI agent skill entry point
-4. `README.md` — universal project entry
+For the complete syntax reference — all tags, parameter types, YAML fields, variable injection
+rules — see [docs/spec.md](./docs/spec.md).
 
 ## Programmatic API
 
@@ -177,7 +145,6 @@ const source = readFileSync("mdrun.md", "utf8");
 const blocks = parseMarkdown(source);
 const { commands } = buildCommandTree(blocks);
 
-// Find and execute a command
 const cmd = commands.find(c => c.name === "build");
 if (cmd) {
   const result = await executeCommand(cmd, { args: {} });

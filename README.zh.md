@@ -17,12 +17,21 @@ Markdown 的天然结构也非常适合对 AI Agent 进行[渐进式披露](http
 ## 安装
 
 ```sh
-# 全局安装
 npm install -g @leyohli/mdrun
+```
 
-# 或不安装直接使用
+其他包管理器：
+
+```sh
+pnpm add -g @leyohli/mdrun
+yarn global add @leyohli/mdrun
+bun add -g @leyohli/mdrun
+
+# 不安装直接使用
 npx @leyohli/mdrun --help
 ```
+
+需要 Node.js ≥ 18。
 
 ## 立即体验
 
@@ -40,51 +49,74 @@ echo "hello, ${name:-world}${strong:+!}"
 
 ## 快速开始
 
-[example/mdrun.md](./example/mdrun.md) 涵盖所有特性 —— 基础命令、参数、子命令、YAML 元数据和多平台支持。直接运行：
+在项目中创建 `mdrun.md`：
 
-```sh
-# 列出所有可用命令
-mdrun -f example/mdrun.md --tree
-
-# 运行命令
-mdrun -f example/mdrun.md greet world
-mdrun -f example/mdrun.md db migrate
-
-# 子命令帮助
-mdrun -f example/mdrun.md db --help
+````markdown
+```bash cmd=build desc=构建项目
+npm run build
 ```
 
-## Info String 标签
+```bash cmd=test desc=运行测试
+npm test
+```
 
-| 标签 | 是否必须 | 说明 |
-| --- | --- | --- |
-| `cmd=` | 是 | 命令名称；使用点号表示子命令（`db.migrate`） |
-| `args=` | 否 | 参数声明（见[参数语法](#参数语法)） |
-| `desc=` | 否 | 命令描述，显示在帮助输出中 |
-| `confirm=` | 否 | 执行前的确认提示（支持 `$variable` 插值） |
-| `spec=` | 否 | 通过 `id=` 引用 YAML 元数据块（优先于 `args=`） |
-| `os=` | 否 | 平台过滤：`linux`、`mac`、`windows`（逗号分隔） |
-| `id=` | — | YAML 元数据块的标识符，供 `spec=` 引用 |
+```bash cmd=db.migrate desc=执行数据库迁移
+npm run db:migrate
+```
+````
 
-## 参数语法
+运行命令：
 
-`args=` 标签支持紧凑的单行语法：
+```sh
+mdrun build
+mdrun test
+mdrun db migrate
 
-| Token | 含义 |
-| --- | --- |
-| `(name)` | 必填位置参数 |
-| `[name]` | 可选位置参数 |
-| `[--flag]` | 可选布尔标志 |
-| `[-p/--port=<port>]` | 可选字符串选项（短+长形式） |
-| `(-d/--domain=<domain>)` | 必填字符串选项 |
-| `[--port=<port:number>]` | 带类型注解的选项（`string`/`number`/`boolean`） |
-| `[--tag=<tag>=latest]` | 带默认值的选项 |
+# 列出所有命令
+mdrun --tree
 
-**变量注入规则：** 选项名以环境变量形式注入，连字符替换为下划线。`--dry-run` 变为 `$dry_run`（同时注入 `$DRY_RUN`）。
+# 查看命令帮助
+mdrun db migrate --help
+```
 
-## YAML 元数据块
+完整示例见 [example/mdrun.md](./example/mdrun.md)，涵盖参数、子命令、YAML 元数据、多平台支持和确认提示。
 
-对于复杂命令，在带 `id=` 的 YAML 代码块中声明参数，并在脚本块中通过 `spec=` 引用：
+## 子命令
+
+在 `cmd=` 中使用点号表示法对命令分组，无需显式声明组：
+
+````markdown
+```bash cmd=db.migrate desc=执行数据库迁移
+diesel migration run
+```
+
+```bash cmd=db.seed desc=填充测试数据
+cargo run --bin seed
+```
+````
+
+```sh
+mdrun db --help     # 显示 migrate、seed
+mdrun db migrate
+```
+
+## 参数与选项
+
+通过 `args=` 内联声明参数。位置参数用 `(必填)` 或 `[可选]`；选项用 `[--flag]` 或 `[-p/--port=<port>=3000]`：
+
+````markdown
+```bash cmd=deploy args=(-e/--env=<env>) [--dry-run] desc=部署应用
+echo "Deploying to $env"
+[ -n "$dry_run" ] && echo "(dry run)"
+```
+````
+
+参数以环境变量形式注入 —— `--dry-run` 变为 `$dry_run` 和 `$DRY_RUN`。
+布尔标志未传时不注入，`[ -n "$flag" ]` 和 `${flag:+...}` 可直接使用。
+
+## YAML 元数据
+
+参数较多或需要确认提示时，使用 `yaml id=` 块声明，并通过 `spec=` 引用：
 
 ````markdown
 ```yaml id=deploy-meta
@@ -105,9 +137,11 @@ echo "Deploying to $env..."
 ```
 ````
 
-## 多平台支持
+存在 `spec=` 时，内联 `args=` 会被忽略。
 
-使用 `os=` 为同一命令提供平台特定实现，mdrun 在运行时自动选择匹配的代码块：
+## 多平台
+
+对同一 `cmd=` 用不同 `os=` 标签提供平台特定实现，mdrun 在运行时自动选择：
 
 ````markdown
 ```bash cmd=build os=linux,mac
@@ -119,24 +153,29 @@ cargo build --release
 ```
 ````
 
-支持的平台值：`linux`、`mac`、`windows`。
+## 完整规范
 
-## CLI 参考
+所有标签、参数类型、YAML 字段、变量注入规则的完整说明见 [docs/spec.md](./docs/spec.md)。
 
-```text
-mdrun [OPTIONS] [COMMAND] [ARGS...]
+## Programmatic API
 
-Options:
-  -f, --file <file>   Markdown file to use (default: auto-discover)
-  --tree              List all available commands in tree format
-  --json              Output command structure as JSON
-  -h, --help          Show help
-  -V, --version       Show version
+mdrun 也可以作为库使用：
+
+```typescript
+import { readFileSync } from "fs";
+import { parseMarkdown, buildCommandTree, executeCommand } from "mdrun";
+
+const source = readFileSync("mdrun.md", "utf8");
+const blocks = parseMarkdown(source);
+const { commands } = buildCommandTree(blocks);
+
+const cmd = commands.find(c => c.name === "build");
+if (cmd) {
+  const result = await executeCommand(cmd, { args: {} });
+  process.exit(result.exitCode);
+}
 ```
 
-**默认文件查找顺序**（未指定 `-f` 时，在当前目录按以下顺序查找）：
+## 许可证
 
-1. `mdrun.md` —— 专为 mdrun 准备
-2. `BUILD.md` —— 构建和开发命令
-3. `SKILL.md` —— AI Agent Skill 入口
-4. `README.md` —— 通用项目入口
+MIT © 2025 Li Yiheng
